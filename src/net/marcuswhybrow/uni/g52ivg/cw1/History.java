@@ -46,7 +46,7 @@ public class History
 	public void push(JPEGImage image)
 	{
 		this.clearForwardHistory();
-		_history.add(new JPEGImage(image));
+		_history.add(image);
 		_currentImage++;
 	}
 

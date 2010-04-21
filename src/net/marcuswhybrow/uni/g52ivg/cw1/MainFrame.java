@@ -38,12 +38,6 @@ public class MainFrame extends JFrame
 		this.setVisible(true);
 	}
 
-	public void updateImage(JPEGImage newImage) throws IOException
-	{
-		_history.push(new JPEGImage(newImage));
-
-	}
-
 	public JPEGImage getImage()
 	{
 		return _history.peek();
@@ -77,7 +71,8 @@ public class MainFrame extends JFrame
 
 	public void meanFilter()
 	{
-		System.out.println("meanFilter");
+		_history.push(_history.peek().meanFilter(3));
+		this.reloadImageLabel();
 	}
 
 	public void medianFilter()
@@ -103,11 +98,13 @@ public class MainFrame extends JFrame
 	public void undo()
 	{
 		_history.undo();
+		this.reloadImageLabel();
 	}
 
 	public void redo()
 	{
 		_history.redo();
+		this.reloadImageLabel();
 	}
 
 	private void reloadImageLabel()

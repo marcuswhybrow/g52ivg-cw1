@@ -21,11 +21,11 @@ import java.io.*;
  * @author <a href="mailto:smx@cs.nott.ac.uk">Steven Mills</a>
  * @version 1.0 (Jan 8 2003)
  */
-public class JPEGImage
+public class JPEGImage implements Cloneable
 {
 
 	private BufferedImage _img;
-	private String _filename;
+	private String _fileName;
 	private String _path;
 
 	/**
@@ -37,6 +37,7 @@ public class JPEGImage
 	 */
 	public JPEGImage()
 	{
+		
 	}
 
 	/**
@@ -65,10 +66,13 @@ public class JPEGImage
 		_img = jpegDec.decodeAsBufferedImage();
 	}
 
-	public JPEGImage(JPEGImage image)
+	@Override
+	public JPEGImage clone()
 	{
-		this(image.getWidth(), image.getHeight());
+		JPEGImage image = new JPEGImage(this.getWidth(), this.getHeight());
 
+		image._path = this.getPath();
+		image._fileName = this.getFileName();
 		for(int x = 0; x < image.getWidth(); x++)
 			for(int y = 0; y < image.getHeight(); y++)
 			{
@@ -78,6 +82,8 @@ public class JPEGImage
 
 				this.setRGB(x, y, red, green, blue);
 			}
+
+		return image;
 	}
 
 	public BufferedImage getBufferedImage()
@@ -88,6 +94,70 @@ public class JPEGImage
 	public String getPath()
 	{
 		return _path;
+	}
+
+	public String getFileName()
+	{
+		return _fileName;
+	}
+
+	public JPEGImage meanFilter(int filterWidth)
+	{
+		JPEGImage output = new JPEGImage(this.getWidth(), this.getHeight());
+		output._path = this.getPath();
+		output._fileName = this.getFileName();
+
+		for(int x = 0; x < this.getWidth(); x++)
+			for(int y = 0; y < this.getHeight(); y++)
+			{
+
+				int red = meanConvMask(x, y, filterWidth, 'r');
+				int green = meanConvMask(x, y, filterWidth, 'g') ;
+				int blue = meanConvMask(x, y, filterWidth, 'b');
+
+				output.setRGB(x, y, red, green, blue);
+			}
+
+		return output;
+	}
+
+	private int meanConvMask(int x, int y, int filterWidth, char colour)
+	{
+		int filterRadius;
+		double sum = 0;
+		int values = 0;
+
+		filterRadius = (filterWidth - 1) / 2;
+
+		for(int u = x - filterRadius; u <= x + filterRadius; u++)
+			for(int v = y - filterRadius; v <= y + filterRadius; v++)
+			{
+				try
+				{
+					switch(colour)
+					{
+						case 'r':
+							sum += this.getRed(u, v);
+							values++;
+							break;
+						case 'g':
+							sum += this.getGreen(u, v);
+							values++;
+							break;
+						case 'b':
+							sum += this.getBlue(u, v);
+							values++;
+							break;
+					}
+				}
+				catch(ArrayIndexOutOfBoundsException e)
+				{
+					// If the pixel does not exist don't add it to the sum.
+					continue;
+				}
+			}
+
+		return (int) (sum / values);
 	}
 
 	/**
