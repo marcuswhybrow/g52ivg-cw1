@@ -27,6 +27,7 @@ public class History
 		}
 		catch(IndexOutOfBoundsException e)
 		{
+			++_currentImage;
 			return null;
 		}
 	}
@@ -39,6 +40,7 @@ public class History
 		}
 		catch(IndexOutOfBoundsException e)
 		{
+			--_currentImage;
 			return null;
 		}
 	}

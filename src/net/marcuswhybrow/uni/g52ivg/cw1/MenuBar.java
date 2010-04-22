@@ -1,13 +1,17 @@
 
 package net.marcuswhybrow.uni.g52ivg.cw1;
 
+import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.KeyEvent;
 import java.beans.EventHandler;
 import java.util.HashMap;
+import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JFrame;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
+import javax.swing.KeyStroke;
 
 
 /**
@@ -29,15 +33,15 @@ public class MenuBar extends JMenuBar
 		JMenuItem item;
 
 		menu = new JMenu("File");
-		addButton(menu, "open", "Open");
+		addButton(menu, "open", "Open").setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_O, ActionEvent.META_MASK));
 		menu.addSeparator();
-		addButton(menu, "save", "Save");
-		addButton(menu, "saveAs", "Save As...");
+		addButton(menu, "save", "Save").setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_S, ActionEvent.META_MASK));
+		addButton(menu, "saveAs", "Save As...").setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_S, ActionEvent.META_MASK ^ ActionEvent.SHIFT_MASK));
 		this.add(menu);
 
 		menu = new JMenu("Edit");
-		addButton(menu, "undo", "Undo");
-		addButton(menu, "redo", "Redo");
+		addButton(menu, "undo", "Undo").setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_Z, ActionEvent.META_MASK));
+		addButton(menu, "redo", "Redo").setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_Z, ActionEvent.META_MASK ^ ActionEvent.SHIFT_MASK));
 		this.add(menu);
 
 		menu = new JMenu("Enhancement");
@@ -50,12 +54,22 @@ public class MenuBar extends JMenuBar
 
 		menu = new JMenu("Segmentation");
 		addButton(menu, "histSeg", "Histogram Segmentation");
-		addButton(menu, "regGrow", "Median");
+		addButton(menu, "regGrow", "Region Growing");
 		this.add(menu);
 
-		//disableAllButtons();
+		menu = new JMenu("Window");
+		addCheckBox(menu, "history", "History").setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_H, ActionEvent.META_MASK));
+		addCheckBox(menu, "histogram", "Histogram");
+		this.add(menu);
+
+		disableAllButtons();
 
 		_menuItems.get("open").setEnabled(true);
+	}
+
+	public JMenuItem getButton(String key)
+	{
+		return _menuItems.get(key);
 	}
 
 	private void disableAllButtons()
@@ -64,9 +78,21 @@ public class MenuBar extends JMenuBar
 			menuItem.setEnabled(false);
 	}
 
-	private void addButton(JMenu menu, String identifier, String name)
+	private JMenuItem addButton(JMenu menu, String identifier, String name)
 	{
 		_menuItems.put(identifier, menu.add(new JMenuItem(name)));
-		_menuItems.get(identifier).addActionListener((ActionListener) EventHandler.create(ActionListener.class, this._mainFrame, identifier));
+		JMenuItem button = _menuItems.get(identifier);
+		button.addActionListener((ActionListener) EventHandler.create(ActionListener.class, this._mainFrame, identifier));
+
+		return button;
+	}
+
+	private JCheckBoxMenuItem addCheckBox(JMenu menu, String identifier, String name)
+	{
+		_menuItems.put(identifier, menu.add(new JCheckBoxMenuItem(name)));
+		JCheckBoxMenuItem checkBox = (JCheckBoxMenuItem) _menuItems.get(identifier);
+		checkBox.addActionListener((ActionListener) EventHandler.create(ActionListener.class, this._mainFrame, identifier));
+
+		return checkBox;
 	}
 }

@@ -4,6 +4,10 @@ package net.marcuswhybrow.uni.g52ivg.cw1;
 import com.sun.image.codec.jpeg.*;
 import java.awt.image.*;
 import java.io.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * <p>
@@ -25,8 +29,6 @@ public class JPEGImage implements Cloneable
 {
 
 	private BufferedImage _img;
-	private String _fileName;
-	private String _path;
 
 	/**
 	 * Default image constructor.
@@ -61,8 +63,7 @@ public class JPEGImage implements Cloneable
 
 	public JPEGImage(String path) throws IOException, ImageFormatException
 	{
-		_path = path;
-		JPEGImageDecoder jpegDec = JPEGCodec.createJPEGDecoder(new FileInputStream(_path));
+		JPEGImageDecoder jpegDec = JPEGCodec.createJPEGDecoder(new FileInputStream(path));
 		_img = jpegDec.decodeAsBufferedImage();
 	}
 
@@ -70,9 +71,6 @@ public class JPEGImage implements Cloneable
 	public JPEGImage clone()
 	{
 		JPEGImage image = new JPEGImage(this.getWidth(), this.getHeight());
-
-		image._path = this.getPath();
-		image._fileName = this.getFileName();
 		for(int x = 0; x < image.getWidth(); x++)
 			for(int y = 0; y < image.getHeight(); y++)
 			{
@@ -91,73 +89,88 @@ public class JPEGImage implements Cloneable
 		return _img;
 	}
 
-	public String getPath()
-	{
-		return _path;
-	}
-
-	public String getFileName()
-	{
-		return _fileName;
-	}
-
-	public JPEGImage meanFilter(int filterWidth)
+	public JPEGImage meanFilter(int filterRadius)
 	{
 		JPEGImage output = new JPEGImage(this.getWidth(), this.getHeight());
-		output._path = this.getPath();
-		output._fileName = this.getFileName();
+
+		int redSum, greenSum, blueSum;
+		int reds, greens, blues;
 
 		for(int x = 0; x < this.getWidth(); x++)
 			for(int y = 0; y < this.getHeight(); y++)
 			{
+				redSum = greenSum = blueSum = 0;
+				reds = greens = blues = 0;
+				
+				for(int u = x - filterRadius; u <= x + filterRadius; u++)
+					for(int v = y - filterRadius; v <= y + filterRadius; v++)
+					{
+						try
+						{
+							redSum += this.getRed(u, v);
+							reds++;
 
-				int red = meanConvMask(x, y, filterWidth, 'r');
-				int green = meanConvMask(x, y, filterWidth, 'g') ;
-				int blue = meanConvMask(x, y, filterWidth, 'b');
+							greenSum += this.getGreen(u, v);
+							greens++;
 
-				output.setRGB(x, y, red, green, blue);
+							blueSum += this.getBlue(u, v);
+							blues++;
+						}
+						catch(ArrayIndexOutOfBoundsException e)
+						{
+							// If the pixel does not exist don't add it to the sum.
+							continue;
+						}
+					}
+
+				output.setRGB(x, y, redSum/reds, greenSum/greens, blueSum/blues);
 			}
 
 		return output;
 	}
 
-	private int meanConvMask(int x, int y, int filterWidth, char colour)
+	public JPEGImage medianFilter(int filterRadius)
 	{
-		int filterRadius;
-		double sum = 0;
-		int values = 0;
+		JPEGImage output = new JPEGImage(this.getWidth(), this.getHeight());
 
-		filterRadius = (filterWidth - 1) / 2;
+		int possibleSize = (int) Math.pow(filterRadius * 2 + 1, 2);
+		int i;
 
-		for(int u = x - filterRadius; u <= x + filterRadius; u++)
-			for(int v = y - filterRadius; v <= y + filterRadius; v++)
+		int[] reds, greens, blues;
+
+		for(int x = 0; x < this.getWidth(); x++)
+			for(int y = 0; y < this.getHeight(); y++)
 			{
-				try
-				{
-					switch(colour)
-					{
-						case 'r':
-							sum += this.getRed(u, v);
-							values++;
-							break;
-						case 'g':
-							sum += this.getGreen(u, v);
-							values++;
-							break;
-						case 'b':
-							sum += this.getBlue(u, v);
-							values++;
-							break;
-					}
-				}
-				catch(ArrayIndexOutOfBoundsException e)
-				{
-					// If the pixel does not exist don't add it to the sum.
-					continue;
-				}
-			}
+				reds = new int[possibleSize];
+				greens = new int[possibleSize];
+				blues = new int[possibleSize];
 
-		return (int) (sum / values);
+				i = 0;
+				
+				for(int u = x - filterRadius; u <= x + filterRadius; u++)
+					for(int v = y - filterRadius; v <= y + filterRadius; v++)
+					{
+						try
+						{
+							reds[i] = this.getRed(u, v);
+							greens[i] = this.getGreen(u, v);
+							blues[i] = this.getBlue(u, v);
+
+							i++;
+						}
+						catch(ArrayIndexOutOfBoundsException e)
+						{
+							continue;
+						}
+					}
+				Arrays.sort(reds);
+				Arrays.sort(greens);
+				Arrays.sort(blues);
+
+				output.setRGB(x, y, reds[possibleSize - i + (i / 2)], greens[possibleSize - i + (i / 2)], blues[possibleSize - i + (i / 2)]);
+			}
+		
+		return output;
 	}
 
 	/**
@@ -309,5 +322,35 @@ public class JPEGImage implements Cloneable
 	public void setRGB(int x, int y, int r, int g, int b)
 	{
 		_img.setRGB(x, y, 0xff000000 | (r << 16) | (g << 8) | b);
+	}
+
+	private int[] getHistogram(char colour)
+	{
+		int[] values = new int[256];
+
+		// initialise values
+		for (int i = 0; i < 256; i++)
+			values[i] = 0;
+
+		// add up the different pixel values into the histogram
+		for (int x = 0; x < this.getWidth(); x++)
+			for (int y = 0; y < this.getHeight(); y++)
+				switch (colour)
+				{
+					case 'a':
+						values[(this.getRed(x, y) + this.getGreen(x, y) + this.getBlue(x, y)) / 3]++;
+						break;
+					case 'r':
+						values[this.getRed(x, y)]++;
+						break;
+					case 'g':
+						values[this.getGreen(x, y)]++;
+						break;
+					case 'b':
+						values[this.getBlue(x, y)]++;
+						break;
+				}
+
+		return values;
 	}
 }
