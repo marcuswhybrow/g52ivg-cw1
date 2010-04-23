@@ -70,6 +70,16 @@ public class History
 		_currentImage = -1;
 	}
 
+	public boolean hasUndos()
+	{
+		return _currentImage > 0;
+	}
+
+	public boolean hasRedos()
+	{
+		return _currentImage < _history.size() - 1;
+	}
+
 	public void setCurrentImageAsSaved()
 	{
 		_lastSavedImage = _currentImage;

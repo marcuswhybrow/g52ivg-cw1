@@ -4,6 +4,8 @@ package net.marcuswhybrow.uni.g52ivg.cw1;
 import java.awt.Canvas;
 import java.awt.Dimension;
 import java.awt.Graphics;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
 import java.awt.image.BufferedImage;
 import javax.swing.JPanel;
 
@@ -18,7 +20,7 @@ public class Image extends JPanel
 
 	public Image()
 	{
-		setImage(null);
+		this(null);
 	}
 
 	public Image(BufferedImage image)

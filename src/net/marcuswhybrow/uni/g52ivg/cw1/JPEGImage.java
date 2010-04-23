@@ -4,9 +4,9 @@ package net.marcuswhybrow.uni.g52ivg.cw1;
 import com.sun.image.codec.jpeg.*;
 import java.awt.image.*;
 import java.io.*;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
+import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 
 /**
@@ -27,7 +27,7 @@ import java.util.List;
  */
 public class JPEGImage implements Cloneable
 {
-
+	private static final int HISTOGRAM_HEIGHT = 128;
 	private BufferedImage _img;
 
 	/**
@@ -173,6 +173,125 @@ public class JPEGImage implements Cloneable
 		return output;
 	}
 
+	public JPEGImage getHistogram()
+	{
+		int max = 0;
+		JPEGImage output;
+
+		int[] values = this.getHistogram('a');
+
+		// Get the maximum value in the histogram
+		for (int i = 0; i < 256; i++)
+			if (values[i] > max)
+				max = values[i];
+
+		output = new JPEGImage(256, HISTOGRAM_HEIGHT);
+
+		// Fill output image with white
+		for (int x = 0; x < output.getWidth(); x++)
+			for(int y = 0; y < output.getHeight(); y++)
+				output.setRGB(x, y, 255, 255, 255);
+
+		// Colour in pixels of the output image
+		for (int x = 0; x < 256; x++)
+			for (int u = HISTOGRAM_HEIGHT - 1; u > HISTOGRAM_HEIGHT - (int) (((double) values[x] / (double) max) * HISTOGRAM_HEIGHT); u--)
+				output.setRGB(x, u, 0, 0, 0);
+
+		return output;
+	}
+
+	public JPEGImage applyHistSeg(int min, int max)
+	{
+		JPEGImage output = new JPEGImage(this.getWidth(), this.getHeight());
+
+		int intensity;
+		
+		for (int x = 0; x < this.getWidth(); x++)
+			for (int y = 0; y < this.getHeight(); y++)
+			{
+				intensity = getIntensity(x, y);
+				if ((max > min && (intensity >= min && intensity <= max)) || (max < min && (intensity >= min || intensity <= max)))
+					output.setRGB(x, y, getRed(x, y), getGreen(x, y), getBlue(x, y));
+				else
+					output.setRGB(x, y, 255, 255, 255);
+			}
+		
+		return output;
+	}
+
+
+	public JPEGImage regGrow(int x, int y, int sensitivity)
+	{
+		JPEGImage output = new JPEGImage(getWidth(), getHeight());
+		int meanIntensity;
+
+		List<Pixel> region = new LinkedList<Pixel>();
+		List<Pixel> newlyAdded = new LinkedList<Pixel>();
+		List<Pixel> previouslyAdded = new LinkedList<Pixel>();
+
+		Iterator newPixels, regionPixels;
+		Pixel newPixel, neighbouringPixel, pixel;
+
+		// Set the intial pixel
+		region.add(new Pixel(x, y, getRed(x, y), getGreen(x, y), getBlue(x, y)));
+		newlyAdded.add(region.get(0));
+
+		while(!newlyAdded.isEmpty())
+		{
+			// Copy the list of newly added pixels, and rest the newlyAdded list
+			previouslyAdded = newlyAdded;
+			newlyAdded = new LinkedList<Pixel>();
+
+			// Calculate the existing mean intensity of the region
+			regionPixels = region.iterator();
+			meanIntensity = 0;
+
+			while(regionPixels.hasNext())
+				meanIntensity += ((Pixel) regionPixels.next()).getIntensity();
+
+			meanIntensity /= region.size();
+
+
+			// Check the candidate neighbouring pixels against that intensity
+			newPixels = previouslyAdded.iterator();
+
+			while(newPixels.hasNext())
+			{
+				newPixel = (Pixel) newPixels.next();
+
+				// Find the new candidate pixels
+				for(int i = newPixel.getX() - 1; i <= newPixel.getX() + 1; i++)
+					for(int j = newPixel.getY() - 1; j <= newPixel.getY() + 1; j++)
+					{
+						try
+						{
+							neighbouringPixel = new Pixel(i, j, getRed(i, j), getGreen(i, j), getRed(i, j));
+						}
+						catch(ArrayIndexOutOfBoundsException e)
+						{
+							continue;
+						}
+
+						if(!region.contains(neighbouringPixel) && Math.abs(neighbouringPixel.getIntensity() - meanIntensity) <= sensitivity)
+						{
+							region.add(neighbouringPixel);
+							newlyAdded.add(neighbouringPixel);
+						}
+					}
+			}
+		}
+
+		regionPixels = region.iterator();
+
+		while(regionPixels.hasNext())
+		{
+			pixel = (Pixel) regionPixels.next();
+			output.setRGB(pixel.getX(), pixel.getY(), getRed(pixel.getX(), pixel.getY()), getGreen(pixel.getX(), pixel.getY()), getBlue(pixel.getX(), pixel.getY()));
+		}
+
+		return output;
+	}
+
 	/**
 	 * Writes an image to a file in JPEG format.
 	 *
@@ -257,6 +376,11 @@ public class JPEGImage implements Cloneable
 		return (_img.getRGB(x, y) & 0x000000ff);
 	}
 
+	public int getIntensity(int x, int y)
+	{
+		return (getRed(x, y) + getGreen(x, y) + getBlue(x, y)) / 3;
+	}
+
 	/**
 	 * Sets the red value of the image at the given coordinates.
 	 *
@@ -303,6 +427,11 @@ public class JPEGImage implements Cloneable
 	public void setBlue(int x, int y, int value)
 	{
 		_img.setRGB(x, y, (_img.getRGB(x, y) & 0xffffff00) | value);
+	}
+
+	public void setIntensity(int x, int y, int i)
+	{
+		setRGB(x, y, i, i, i);
 	}
 
 	/**
@@ -352,5 +481,56 @@ public class JPEGImage implements Cloneable
 				}
 
 		return values;
+	}
+
+	private static class Pixel
+	{
+		private int _x;
+		private int _y;
+		private int _intensity;
+
+		public Pixel(int x, int y, int r, int g, int b)
+		{
+			_x = x;
+			_y = y;
+
+			_intensity = (r + g + b) / 3;
+		}
+
+		public int getX()
+		{
+			return _x;
+		}
+
+		public int getY()
+		{
+			return _y;
+		}
+
+		public int getIntensity()
+		{
+			return _intensity;
+		}
+
+		@Override
+		@SuppressWarnings("EqualsWhichDoesntCheckParameterClass")
+		public boolean equals(Object o)
+		{
+			Pixel otherPixel = (Pixel) o;
+
+			if(this.getX() == otherPixel.getX() && this.getY() == otherPixel.getY())
+				return true;
+			else
+				return false;
+		}
+
+		@Override
+		public int hashCode()
+		{
+			int hash = 7;
+			hash = 89 * hash + this._x;
+			hash = 89 * hash + this._y;
+			return hash;
+		}
 	}
 }

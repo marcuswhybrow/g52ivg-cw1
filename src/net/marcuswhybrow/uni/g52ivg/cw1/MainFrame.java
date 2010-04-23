@@ -2,12 +2,9 @@
 package net.marcuswhybrow.uni.g52ivg.cw1;
 
 import com.sun.image.codec.jpeg.ImageFormatException;
-import java.awt.BorderLayout;
-import java.awt.Color;
 import java.awt.Container;
+import java.awt.Cursor;
 import java.awt.Dimension;
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
 import java.awt.event.ComponentEvent;
 import java.awt.event.ComponentListener;
 import java.io.IOException;
@@ -16,18 +13,15 @@ import javax.swing.BoxLayout;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JOptionPane;
-import javax.swing.JPanel;
-import javax.swing.border.Border;
-import javax.swing.border.LineBorder;
 
 /**
  *
  * @author marcus
  */
-public class MainFrame extends JFrame implements ComponentListener
+public class MainFrame extends JFrame implements ComponentListener, OverlayDelegate, RegGrowDelegate
 {
 	private History _history;
-	private Image _image;
+	private RegGrowImage _image;
 
 	private String _applicationName;
 	private String _fileName;
@@ -35,6 +29,14 @@ public class MainFrame extends JFrame implements ComponentListener
 
 	private Box _horizontalBox;
 	private Box _verticalBox;
+
+	private HistogramImage _histogram;
+	private HistogramFrame _histogramFrame;
+
+	private Overlay _cancelOverlay;
+
+	private enum State { IDLE, MEAN_FILTER, MEDIAN_FILTER, HIST_SEG, REG_GROW };
+	private State _state;
 
 	public MainFrame()
 	{
@@ -45,7 +47,8 @@ public class MainFrame extends JFrame implements ComponentListener
 
 		// initialise the history and image instances
 		_history = new History();
-		_image = new Image();
+		_image = new RegGrowImage(this);
+		_cancelOverlay = new Overlay(this);
 
 		// Define the layout shceme
 		setLayout(new BoxLayout(getContentPane(), BoxLayout.PAGE_AXIS));
@@ -76,12 +79,18 @@ public class MainFrame extends JFrame implements ComponentListener
 
 //		_horizontalBox.setBorder(new LineBorder(Color.BLACK));
 
+		// Make the overlay invisible untill needed
+		_cancelOverlay.setVisible(false);
+
 		add(_horizontalBox);
+		add(_cancelOverlay);
 
 		// Add the image to this panel which will display the working image.
 //		_image.setBorder(new LineBorder(Color.BLACK));
 
 		setLocationRelativeTo(null);
+
+		_state = State.IDLE;
 
 		// Finally make the MainFrame visible
 		setVisible(true);
@@ -90,6 +99,11 @@ public class MainFrame extends JFrame implements ComponentListener
 	public JPEGImage getImage()
 	{
 		return _history.peek();
+	}
+
+	public History getHistory()
+	{
+		return _history;
 	}
 
 	public void open() throws IOException, ImageFormatException
@@ -107,8 +121,6 @@ public class MainFrame extends JFrame implements ComponentListener
 		_menuBar.getButton("save").setEnabled(true);
 		_menuBar.getButton("save").setEnabled(true);
 		_menuBar.getButton("saveAs").setEnabled(true);
-		_menuBar.getButton("undo").setEnabled(true);
-		_menuBar.getButton("redo").setEnabled(true);
 		_menuBar.getButton("meanFilter").setEnabled(true);
 		_menuBar.getButton("medianFilter").setEnabled(true);
 		_menuBar.getButton("histSeg").setEnabled(true);
@@ -138,6 +150,7 @@ public class MainFrame extends JFrame implements ComponentListener
 
 	public void meanFilter()
 	{
+		_state = State.MEAN_FILTER;
 		int value;
 		
 		String input = JOptionPane.showInputDialog(this, "Filter Radius: ", "Filter Radius", JOptionPane.INFORMATION_MESSAGE);
@@ -153,10 +166,13 @@ public class MainFrame extends JFrame implements ComponentListener
 		{
 			showError("That's not a number.");
 		}
+
+		_state = State.IDLE;
 	}
 
 	public void medianFilter()
 	{
+		_state = State.MEDIAN_FILTER;
 		int value;
 		
 		String input = JOptionPane.showInputDialog(this, "Filter Radius: ", "Filter Radius", JOptionPane.INFORMATION_MESSAGE);
@@ -172,6 +188,8 @@ public class MainFrame extends JFrame implements ComponentListener
 		{
 			showError("That's not a number.");
 		}
+
+		_state = State.IDLE;
 	}
 
 	public void histEq()
@@ -181,12 +199,55 @@ public class MainFrame extends JFrame implements ComponentListener
 
 	public void histSeg()
 	{
-		System.out.println("histSeq");
+		_state = State.HIST_SEG;
+
+		_histogramFrame = new HistogramFrame(this);
+
+		_state = State.IDLE;
 	}
 
 	public void regGrow()
 	{
-		System.out.println("regGrow");
+		_state = State.REG_GROW;
+
+		//_image = new RegGrowImage(this, _history.peek().getBufferedImage());
+		_image.setCursor(new Cursor(Cursor.CROSSHAIR_CURSOR));
+		//reloadImage();
+		
+		_cancelOverlay.setMessage("Pick a location to begin region growing:");
+		_cancelOverlay.setHasOkButton(false);
+		getRootPane().setDefaultButton(_cancelOverlay.getDefaultButton());
+		_cancelOverlay.setVisible(true);
+	}
+
+	/**
+	 * Region growing delegate method, called when a point has been chosen
+	 * for region growing
+	 *
+	 * @param x The pixel's x value
+	 * @param y The pixel's y value
+	 */
+	public void pointChosen(int x, int y)
+	{
+		_image.setCursor(null);
+
+		String input = JOptionPane.showInputDialog(this, "Enter Sensitivity (0-255): ", "Region Growing Sensitivity", JOptionPane.INFORMATION_MESSAGE);
+		if(input != null)
+		{
+			try
+			{
+				int sensitivity = Integer.parseInt(input);
+				_history.push(_history.peek().regGrow(x, y, sensitivity));
+				reloadImage();
+			}
+			catch(NumberFormatException e)
+			{
+				showError("That's not a number.");
+			}
+		}
+
+		_cancelOverlay.setVisible(false);
+		_state = State.IDLE;
 	}
 
 	public void undo()
@@ -215,7 +276,7 @@ public class MainFrame extends JFrame implements ComponentListener
 
 	public void componentResized(ComponentEvent e)
 	{
-		System.out.println("resized");
+		
 	}
 
 	public void componentMoved(ComponentEvent e)
@@ -246,12 +307,47 @@ public class MainFrame extends JFrame implements ComponentListener
 		System.out.println("hidden");
 	}
 
-
-	private void reloadImage()
+	public void pressedOk()
 	{
-		_image.setImage(_history.peek().getBufferedImage());
+		// this should not be called
+	}
 
+	public void pressedCancel()
+	{
+		_image.setCursor(null);
+		_cancelOverlay.setVisible(false);
+		_state = State.IDLE;
+	}
+
+
+	public void reloadImage()
+	{
+		// Get the latest image
+		JPEGImage image = _history.peek();
+		_image.setImage(image.getBufferedImage());
+
+		if (_histogram != null)
+		{
+			_histogram.setImage(image.getHistogram().getBufferedImage());
+			_histogram.repaint();
+		}
+
+		// Update the undo button status
+		if (_history.hasUndos())
+			_menuBar.getButton("undo").setEnabled(true);
+		else
+			_menuBar.getButton("undo").setEnabled(false);
+
+		// Update the redo button status
+		if (_history.hasRedos())
+			_menuBar.getButton("redo").setEnabled(true);
+		else
+			_menuBar.getButton("redo").setEnabled(false);
+
+		// Decide whether an asterisk is needed for the title bar
 		String asterisk = _history.isCurrentImageSaved() ? "" : "*";
+
+		// Update the title bar
 		this.setTitle(_fileName + asterisk + " - " + _applicationName);
 	}
 
