@@ -43,7 +43,7 @@ public class Image extends JPanel
 			setVisible(false);
 			setVisible(true);
 
-			System.out.println(_originalSize.toString());
+//			System.out.println(_originalSize.toString());
 		}
 	}
 
@@ -56,7 +56,7 @@ public class Image extends JPanel
 
 	public void setPreferredHeight(int height)
 	{
-		System.out.println("Set height to " + height);
+//		System.out.println("Set height to " + height);
 
 		if (height > _originalSize.height)
 			height = _originalSize.height;
@@ -72,7 +72,7 @@ public class Image extends JPanel
 
 	public void setPreferredWidth(int width)
 	{
-		System.out.println("Set width to " + width);
+//		System.out.println("Set width to " + width);
 
 		if (width > _originalSize.width)
 			width = _originalSize.width;
@@ -92,7 +92,7 @@ public class Image extends JPanel
 		double wProp = (double) d.width / (double) _originalSize.width;
 		double hProp = (double) d.height /(double)  _originalSize.height;
 
-		System.out.println("prefered size: " + wProp + " " + hProp);
+//		System.out.println("prefered size: " + wProp + " " + hProp);
 
 		if (wProp > _originalSize.width || hProp > _originalSize.height) return;
 

@@ -2,6 +2,7 @@ package net.marcuswhybrow.uni.g52ivg.cw1;
 
 import java.awt.BasicStroke;
 import java.awt.Color;
+import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
@@ -149,5 +150,16 @@ public class HistogramImage extends Image implements MouseListener, MouseMotionL
 			_startLine.setLine(e.getX(), 0, e.getX(), this.getHeight());
 			this.repaint();
 		}
+	}
+
+	@Override
+	public void setImage(BufferedImage image)
+	{
+		super.setImage(image);
+
+		Dimension d = new Dimension(512, 256);
+		setMaximumSize(d);
+		setPreferredSize(d);
+		setMinimumSize(d);
 	}
 }

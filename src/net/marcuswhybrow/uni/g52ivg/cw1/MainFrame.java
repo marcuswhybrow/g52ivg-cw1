@@ -35,12 +35,12 @@ public class MainFrame extends JFrame implements ComponentListener, OverlayDeleg
 
 	private Overlay _cancelOverlay;
 
-	private enum State { IDLE, MEAN_FILTER, MEDIAN_FILTER, HIST_SEG, REG_GROW };
+	private enum State { IDLE, MEAN_FILTER, MEDIAN_FILTER, HIST_SEG, HIST_EQ, REG_GROW };
 	private State _state;
 
 	public MainFrame()
 	{
-		super("Photoshop CS5 RC1");
+		super("G52IVG Coursework");
 
 		// Get the name set using super(String str) above
 		_applicationName = this.getTitle();
@@ -123,6 +123,7 @@ public class MainFrame extends JFrame implements ComponentListener, OverlayDeleg
 		_menuBar.getButton("saveAs").setEnabled(true);
 		_menuBar.getButton("meanFilter").setEnabled(true);
 		_menuBar.getButton("medianFilter").setEnabled(true);
+		_menuBar.getButton("histEq").setEnabled(true);
 		_menuBar.getButton("histSeg").setEnabled(true);
 		_menuBar.getButton("regGrow").setEnabled(true);
 
@@ -194,12 +195,19 @@ public class MainFrame extends JFrame implements ComponentListener, OverlayDeleg
 
 	public void histEq()
 	{
-		System.out.println("histEq");
+		_state = State.HIST_EQ;
+
+		_history.push(_history.peek().histEq());
+		reloadImage();
+
+		_state = State.IDLE;
 	}
 
 	public void histSeg()
 	{
 		_state = State.HIST_SEG;
+		_cancelOverlay.setVisible(false);
+		_image.setCursor(null);
 
 		_histogramFrame = new HistogramFrame(this);
 
@@ -210,13 +218,15 @@ public class MainFrame extends JFrame implements ComponentListener, OverlayDeleg
 	{
 		_state = State.REG_GROW;
 
+		_histogramFrame.dispose();
+
 		//_image = new RegGrowImage(this, _history.peek().getBufferedImage());
 		_image.setCursor(new Cursor(Cursor.CROSSHAIR_CURSOR));
 		//reloadImage();
 		
 		_cancelOverlay.setMessage("Pick a location to begin region growing:");
 		_cancelOverlay.setHasOkButton(false);
-		getRootPane().setDefaultButton(_cancelOverlay.getDefaultButton());
+		//getRootPane().setDefaultButton(_cancelOverlay.getDefaultButton());
 		_cancelOverlay.setVisible(true);
 	}
 
@@ -229,37 +239,40 @@ public class MainFrame extends JFrame implements ComponentListener, OverlayDeleg
 	 */
 	public void pointChosen(int x, int y)
 	{
-		_image.setCursor(null);
-
-		String input = JOptionPane.showInputDialog(this, "Enter Sensitivity (0-255): ", "Region Growing Sensitivity", JOptionPane.INFORMATION_MESSAGE);
-		if(input != null)
+		if (_state == State.REG_GROW)
 		{
-			try
-			{
-				int sensitivity = Integer.parseInt(input);
-				_history.push(_history.peek().regGrow(x, y, sensitivity));
-				reloadImage();
-			}
-			catch(NumberFormatException e)
-			{
-				showError("That's not a number.");
-			}
-		}
+			_image.setCursor(null);
 
-		_cancelOverlay.setVisible(false);
-		_state = State.IDLE;
+			String input = JOptionPane.showInputDialog(this, "Enter Sensitivity (0-255): ", "Region Growing Sensitivity", JOptionPane.INFORMATION_MESSAGE);
+			if(input != null)
+			{
+				try
+				{
+					int sensitivity = Integer.parseInt(input);
+					_history.push(_history.peek().regGrow(x, y, sensitivity));
+					reloadImage();
+				}
+				catch(NumberFormatException e)
+				{
+					showError("That's not a number.");
+				}
+			}
+
+			_cancelOverlay.setVisible(false);
+			_state = State.IDLE;
+		}
 	}
 
 	public void undo()
 	{
 		_history.undo();
-		this.reloadImage();
+		reloadImage();
 	}
 
 	public void redo()
 	{
 		_history.redo();
-		this.reloadImage();
+		reloadImage();
 	}
 
 	public void history()
@@ -281,19 +294,19 @@ public class MainFrame extends JFrame implements ComponentListener, OverlayDeleg
 
 	public void componentMoved(ComponentEvent e)
 	{
-		JPEGImage image = _history.peek();
-
-		if(!_image.hasImage()) return;
-
-		//System.out.println(" Image Width: " + _image.getWidth() + " Panel Width: " + this.getContentPane().getWidth());
-
-		Container panel = getContentPane();
-
-		if(_image.getWidth() > panel.getWidth() || (_image.getWidth() < this.getWidth() && _image.getWidth() < image.getWidth()))
-			_image.setPreferredWidth(panel.getWidth());
-
-//		if(_image.getHeight() > panel.getHeight() || (_image.getHeight() < this.getHeight() && _image.getHeight() < image.getHeight()))
-//			_image.setPreferredHeight(panel.getHeight());
+//		JPEGImage image = _history.peek();
+//
+//		if(!_image.hasImage()) return;
+//
+//		//System.out.println(" Image Width: " + _image.getWidth() + " Panel Width: " + this.getContentPane().getWidth());
+//
+//		Container panel = getContentPane();
+//
+//		if(_image.getWidth() > panel.getWidth() || (_image.getWidth() < this.getWidth() && _image.getWidth() < image.getWidth()))
+//			_image.setPreferredWidth(panel.getWidth());
+//
+////		if(_image.getHeight() > panel.getHeight() || (_image.getHeight() < this.getHeight() && _image.getHeight() < image.getHeight()))
+////			_image.setPreferredHeight(panel.getHeight());
 
 	}
 
@@ -326,11 +339,12 @@ public class MainFrame extends JFrame implements ComponentListener, OverlayDeleg
 		JPEGImage image = _history.peek();
 		_image.setImage(image.getBufferedImage());
 
-		if (_histogram != null)
-		{
-			_histogram.setImage(image.getHistogram().getBufferedImage());
-			_histogram.repaint();
-		}
+		if (_histogramFrame != null)
+			if (_histogramFrame.getHistogram() != null)
+			{
+				_histogramFrame.getHistogram().setImage(image.getHistogram().getBufferedImage());
+				//_histogramFrame.getHistogram().repaint();
+			}
 
 		// Update the undo button status
 		if (_history.hasUndos())

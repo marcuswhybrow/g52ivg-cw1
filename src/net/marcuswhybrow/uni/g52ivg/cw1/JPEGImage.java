@@ -2,6 +2,7 @@
 package net.marcuswhybrow.uni.g52ivg.cw1;
 
 import com.sun.image.codec.jpeg.*;
+import java.awt.Color;
 import java.awt.image.*;
 import java.io.*;
 import java.util.Arrays;
@@ -177,8 +178,9 @@ public class JPEGImage implements Cloneable
 	{
 		int max = 0;
 		JPEGImage output;
+		int[] values;
 
-		int[] values = this.getHistogram('a');
+		values = this.getRGBHistogram();
 
 		// Get the maximum value in the histogram
 		for (int i = 0; i < 256; i++)
@@ -211,9 +213,11 @@ public class JPEGImage implements Cloneable
 			{
 				intensity = getIntensity(x, y);
 				if ((max > min && (intensity >= min && intensity <= max)) || (max < min && (intensity >= min || intensity <= max)))
-					output.setRGB(x, y, getRed(x, y), getGreen(x, y), getBlue(x, y));
-				else
-					output.setRGB(x, y, 255, 255, 255);
+					output.setRGB(x, y, 0x00ffffff);
+
+//					output.setRGB(x, y, getRed(x, y), getGreen(x, y), getBlue(x, y));
+//				else
+//					output.setRGB(x, y, 255, 255, 255);
 			}
 		
 		return output;
@@ -225,29 +229,29 @@ public class JPEGImage implements Cloneable
 		JPEGImage output = new JPEGImage(getWidth(), getHeight());
 		int meanIntensity;
 
-		List<Pixel> region = new LinkedList<Pixel>();
-		List<Pixel> newlyAdded = new LinkedList<Pixel>();
-		List<Pixel> previouslyAdded = new LinkedList<Pixel>();
+		List<HSBPixel> region = new LinkedList<HSBPixel>();
+		List<HSBPixel> newlyAdded = new LinkedList<HSBPixel>();
+		List<HSBPixel> previouslyAdded = new LinkedList<HSBPixel>();
 
 		Iterator newPixels, regionPixels;
-		Pixel newPixel, neighbouringPixel, pixel;
+		HSBPixel newPixel, neighbouringPixel, pixel;
 
 		// Set the intial pixel
-		region.add(new Pixel(x, y, getRed(x, y), getGreen(x, y), getBlue(x, y)));
+		region.add(new HSBPixel(x, y, getRed(x, y), getGreen(x, y), getBlue(x, y)));
 		newlyAdded.add(region.get(0));
 
 		while(!newlyAdded.isEmpty())
 		{
 			// Copy the list of newly added pixels, and rest the newlyAdded list
 			previouslyAdded = newlyAdded;
-			newlyAdded = new LinkedList<Pixel>();
+			newlyAdded = new LinkedList<HSBPixel>();
 
 			// Calculate the existing mean intensity of the region
 			regionPixels = region.iterator();
 			meanIntensity = 0;
 
 			while(regionPixels.hasNext())
-				meanIntensity += ((Pixel) regionPixels.next()).getIntensity();
+				meanIntensity += ((HSBPixel) regionPixels.next()).getIntensity();
 
 			meanIntensity /= region.size();
 
@@ -257,7 +261,7 @@ public class JPEGImage implements Cloneable
 
 			while(newPixels.hasNext())
 			{
-				newPixel = (Pixel) newPixels.next();
+				newPixel = (HSBPixel) newPixels.next();
 
 				// Find the new candidate pixels
 				for(int i = newPixel.getX() - 1; i <= newPixel.getX() + 1; i++)
@@ -265,14 +269,17 @@ public class JPEGImage implements Cloneable
 					{
 						try
 						{
-							neighbouringPixel = new Pixel(i, j, getRed(i, j), getGreen(i, j), getRed(i, j));
+							neighbouringPixel = new HSBPixel(i, j, getRed(i, j), getGreen(i, j), getBlue(i, j));
 						}
 						catch(ArrayIndexOutOfBoundsException e)
 						{
 							continue;
 						}
 
-						if(!region.contains(neighbouringPixel) && Math.abs(neighbouringPixel.getIntensity() - meanIntensity) <= sensitivity)
+//						neighbouringPixel.setSaturation(0);
+//						System.out.println(neighbouringPixel.getBrightness());
+
+						if(!region.contains(neighbouringPixel) && Math.abs(neighbouringPixel.getIntensity()- meanIntensity) <= sensitivity)
 						{
 							region.add(neighbouringPixel);
 							newlyAdded.add(neighbouringPixel);
@@ -285,9 +292,69 @@ public class JPEGImage implements Cloneable
 
 		while(regionPixels.hasNext())
 		{
-			pixel = (Pixel) regionPixels.next();
-			output.setRGB(pixel.getX(), pixel.getY(), getRed(pixel.getX(), pixel.getY()), getGreen(pixel.getX(), pixel.getY()), getBlue(pixel.getX(), pixel.getY()));
+			pixel = (HSBPixel) regionPixels.next();
+//			output.setRGB(pixel.getX(), pixel.getY(), getRed(pixel.getX(), pixel.getY()), getGreen(pixel.getX(), pixel.getY()), getBlue(pixel.getX(), pixel.getY()));
+			output.setRGB(pixel.getX(), pixel.getY(), 0x00ffffff);
 		}
+
+		return output;
+	}
+
+	public JPEGImage histEq()
+	{
+		JPEGImage output = new JPEGImage(getWidth(), getHeight());
+
+		int[] values = getBrightnessHistogram();
+
+		// Create the Cumulative Distribution Function (array)
+		// and find the min and max values
+		int[] cdf = new int[256];
+		int min = -1;
+		cdf[0] = values[0];
+		for (int i = 1; i < values.length; i++)
+		{
+			cdf[i] = values[i] + cdf[i-1];
+
+			if (min == -1 && cdf[i] > 0)
+				min = cdf[i];
+		}
+		
+		// Create the lookup table
+		float[] lookup = new float[256];
+		int numPixels = getWidth() * getHeight();
+		// This is the complicated formula
+		for (int i = 0; i < cdf.length; i++)
+		{
+//			System.out.println(cdf[i] + " " + min);
+			lookup[i] = (float) (cdf[i] - min) / (float) (numPixels - min);
+		}
+
+		for (int i = 0; i < values.length; i++)
+			System.out.println(i + ": " + values[i]);
+
+		System.out.println();
+
+		for (int i = 0; i < lookup.length; i++)
+			System.out.println(i + ": " + lookup[i]);
+
+		float[] hsb;
+		for (int x = 0; x < output.getWidth(); x++)
+			for (int y = 0; y < output.getHeight(); y++)
+			{
+				hsb = Color.RGBtoHSB(getRed(x, y), getGreen(x, y), getBlue(x, y), null);
+
+//				System.out.print("Before: " + hsb[2]);
+
+				// Set the new brightness value for this pixel
+				hsb[2] = lookup[Math.round(hsb[2] * 255)];
+
+//				System.out.println(" After: " + hsb[2]);
+
+//				System.out.println(hsb[2]);
+
+				// Set the pixels new values
+				output.setRGB(x, y, Color.HSBtoRGB(hsb[0], hsb[1], hsb[2]));
+			}
 
 		return output;
 	}
@@ -378,7 +445,8 @@ public class JPEGImage implements Cloneable
 
 	public int getIntensity(int x, int y)
 	{
-		return (getRed(x, y) + getGreen(x, y) + getBlue(x, y)) / 3;
+//		return (getRed(x, y) + getGreen(x, y) + getBlue(x, y)) / 3;
+		return (int) (0.2989 * (float) getRed(x, y) + 0.5870 * (float) getGreen(x, y) + 0.1140 * (float) getBlue(x, y));
 	}
 
 	/**
@@ -390,7 +458,7 @@ public class JPEGImage implements Cloneable
 	 * 
 	 * @param x the horizontal coordinate of the pixel
 	 * @param y the vertical coordinate of the pixel
-	 * @param value the new red value at the given coordinates
+	 * @param hue the new red value at the given coordinates
 	 */
 	public void setRed(int x, int y, int value)
 	{
@@ -406,7 +474,7 @@ public class JPEGImage implements Cloneable
 	 *
 	 * @param x the horizontal coordinate of the pixel
 	 * @param y the vertical coordinate of the pixel
-	 * @param value the new green value at the given coordinates
+	 * @param hue the new green value at the given coordinates
 	 */
 	public void setGreen(int x, int y, int value)
 	{
@@ -422,7 +490,7 @@ public class JPEGImage implements Cloneable
 	 *
 	 * @param x the horizontal coordinate of the pixel
 	 * @param y the vertical coordinate of the pixel
-	 * @param value the new blue value at the given coordinates
+	 * @param hue the new blue value at the given coordinates
 	 */
 	public void setBlue(int x, int y, int value)
 	{
@@ -453,7 +521,12 @@ public class JPEGImage implements Cloneable
 		_img.setRGB(x, y, 0xff000000 | (r << 16) | (g << 8) | b);
 	}
 
-	private int[] getHistogram(char colour)
+	public void setRGB(int x, int y, int rgb)
+	{
+		_img.setRGB(x, y, rgb);
+	}
+
+	private int[] getRGBHistogram()
 	{
 		int[] values = new int[256];
 
@@ -464,29 +537,30 @@ public class JPEGImage implements Cloneable
 		// add up the different pixel values into the histogram
 		for (int x = 0; x < this.getWidth(); x++)
 			for (int y = 0; y < this.getHeight(); y++)
-				switch (colour)
-				{
-					case 'a':
-						values[(this.getRed(x, y) + this.getGreen(x, y) + this.getBlue(x, y)) / 3]++;
-						break;
-					case 'r':
-						values[this.getRed(x, y)]++;
-						break;
-					case 'g':
-						values[this.getGreen(x, y)]++;
-						break;
-					case 'b':
-						values[this.getBlue(x, y)]++;
-						break;
-				}
+				values[(int) (0.2989 * (float) this.getRed(x, y) + 0.5870 * (float) this.getGreen(x, y) + 0.1140 * (float) this.getBlue(x, y))]++;
+
+		return values;
+	}
+
+	private int[] getBrightnessHistogram()
+	{
+		int[] values = new int[256];
+
+		// initialise values
+		for (int i = 0; i < 256; i++)
+			values[i] = 0;
+
+		// add up the different pixel values into the histogram
+		for (int x = 0; x < this.getWidth(); x++)
+			for (int y = 0; y < this.getHeight(); y++)
+				values[Math.round(Color.RGBtoHSB(this.getRed(x, y), this.getGreen(x, y), this.getBlue(x, y), null)[2] * 255)]++;
 
 		return values;
 	}
 
 	private static class Pixel
 	{
-		private int _x;
-		private int _y;
+		private int _x, _y, _r, _g, _b;
 		private int _intensity;
 
 		public Pixel(int x, int y, int r, int g, int b)
@@ -494,7 +568,11 @@ public class JPEGImage implements Cloneable
 			_x = x;
 			_y = y;
 
-			_intensity = (r + g + b) / 3;
+			_r = r;
+			_g = g;
+			_b = b;
+
+			updateIntensity();
 		}
 
 		public int getX()
@@ -512,11 +590,49 @@ public class JPEGImage implements Cloneable
 			return _intensity;
 		}
 
+		public int getRed()
+		{
+			return _r;
+		}
+
+		public int getGreen()
+		{
+			return _g;
+		}
+
+		public int getBlue()
+		{
+			return _b;
+		}
+
+		public void setRed(int value)
+		{	
+			_r =  checkRange(value);
+			updateIntensity();
+		}
+
+		public void setGreen(int value)
+		{
+			_g =  checkRange(value);
+			updateIntensity();
+		}
+
+		public void setBlue(int value)
+		{	
+			_b = checkRange(value);
+			updateIntensity();
+		}
+
+		private void updateIntensity()
+		{
+			_intensity = (int) (0.2989 * (float) _r + 0.5870 * (float) _g + 0.1140 * (float) _b);
+		}
+
 		@Override
 		@SuppressWarnings("EqualsWhichDoesntCheckParameterClass")
 		public boolean equals(Object o)
 		{
-			Pixel otherPixel = (Pixel) o;
+			HSBPixel otherPixel = (HSBPixel) o;
 
 			if(this.getX() == otherPixel.getX() && this.getY() == otherPixel.getY())
 				return true;
@@ -531,6 +647,74 @@ public class JPEGImage implements Cloneable
 			hash = 89 * hash + this._x;
 			hash = 89 * hash + this._y;
 			return hash;
+		}
+
+		private int checkRange(int value)
+		{
+			if (value < 0 ) return 0;
+			if (value > 255) return 255;
+
+			return value;
+		}
+	}
+
+	private class HSBPixel extends Pixel
+	{
+		private float _h, _s, _b;
+
+		public HSBPixel(int x, int y, int r, int g, int b)
+		{
+			super(x, y, r, g, b);
+
+			// Convert to HSB colour space
+			float[] hsb = Color.RGBtoHSB(r, g, b, null);
+			_h = hsb[0];
+			_s = hsb[1];
+			_b = hsb[2];
+		}
+
+		public int getHue()
+		{
+			return (int) (_h * 255);
+		}
+
+		public int getSaturation()
+		{
+			return (int) (_s * 255);
+		}
+
+		public int getBrightness()
+		{
+			return (int) (_b * 255);
+		}
+
+		public void setHue(float hue)
+		{
+			_h = hue;
+			updateRGB();
+		}
+
+		public void setSaturation(float saturation)
+		{
+			_s = saturation;
+			updateRGB();
+		}
+
+		public void setBrightness(float brightness)
+		{
+			_b = brightness;
+			updateRGB();
+		}
+
+		private void updateRGB()
+		{
+			// Convert back to rgb bringing saturation to
+			int rgb = Color.HSBtoRGB(_h, _s, _b);
+
+			// work out the rgb new values
+			this.setRed((rgb & 0x00ff0000) >> 16);
+			this.setGreen((rgb & 0x0000ff00) >> 8);
+			this.setBlue(rgb & 0x000000ff);
 		}
 	}
 }

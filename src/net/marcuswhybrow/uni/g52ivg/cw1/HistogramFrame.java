@@ -58,4 +58,9 @@ public class HistogramFrame extends JFrame implements OverlayDelegate, Histogram
 	{
 		_overlay.getOkButton().setEnabled(true);
 	}
+
+	public HistogramImage getHistogram()
+	{
+		return _histogram;
+	}
 }
