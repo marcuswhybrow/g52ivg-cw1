@@ -321,17 +321,8 @@ public class JPEGImage implements Cloneable
 		// This is the complicated formula
 		for (int i = 0; i < cdf.length; i++)
 		{
-//			System.out.println(cdf[i] + " " + min);
 			lookup[i] = (float) (cdf[i] - min) / (float) (numPixels - min);
 		}
-
-		for (int i = 0; i < values.length; i++)
-			System.out.println(i + ": " + values[i]);
-
-		System.out.println();
-
-		for (int i = 0; i < lookup.length; i++)
-			System.out.println(i + ": " + lookup[i]);
 
 		float[] hsb;
 		for (int x = 0; x < output.getWidth(); x++)
@@ -339,14 +330,8 @@ public class JPEGImage implements Cloneable
 			{
 				hsb = Color.RGBtoHSB(getRed(x, y), getGreen(x, y), getBlue(x, y), null);
 
-//				System.out.print("Before: " + hsb[2]);
-
 				// Set the new brightness value for this pixel
 				hsb[2] = lookup[Math.round(hsb[2] * 255)];
-
-//				System.out.println(" After: " + hsb[2]);
-
-//				System.out.println(hsb[2]);
 
 				// Set the pixels new values
 				output.setRGB(x, y, Color.HSBtoRGB(hsb[0], hsb[1], hsb[2]));
