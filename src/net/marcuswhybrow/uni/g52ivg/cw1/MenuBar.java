@@ -33,15 +33,15 @@ public class MenuBar extends JMenuBar
 		JMenuItem item;
 
 		menu = new JMenu("File");
-		addButton(menu, "open", "Open").setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_O, ActionEvent.META_MASK));
+		addButton(menu, "open", "Open").setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_O, ActionEvent.CTRL_MASK));
 		menu.addSeparator();
-		addButton(menu, "save", "Save").setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_S, ActionEvent.META_MASK));
-		addButton(menu, "saveAs", "Save As...").setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_S, ActionEvent.META_MASK ^ ActionEvent.SHIFT_MASK));
+		addButton(menu, "save", "Save").setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_S, ActionEvent.CTRL_MASK));
+		addButton(menu, "saveAs", "Save As...").setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_S, ActionEvent.CTRL_MASK ^ ActionEvent.SHIFT_MASK));
 		this.add(menu);
 
 		menu = new JMenu("Edit");
-		addButton(menu, "undo", "Undo").setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_Z, ActionEvent.META_MASK));
-		addButton(menu, "redo", "Redo").setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_Z, ActionEvent.META_MASK ^ ActionEvent.SHIFT_MASK));
+		addButton(menu, "undo", "Undo").setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_Z, ActionEvent.CTRL_MASK));
+		addButton(menu, "redo", "Redo").setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_Z, ActionEvent.CTRL_MASK ^ ActionEvent.SHIFT_MASK));
 		this.add(menu);
 
 		menu = new JMenu("Enhancement");
@@ -55,11 +55,6 @@ public class MenuBar extends JMenuBar
 		menu = new JMenu("Segmentation");
 		addButton(menu, "histSeg", "Histogram Segmentation");
 		addButton(menu, "regGrow", "Region Growing");
-		this.add(menu);
-
-		menu = new JMenu("Window");
-		addCheckBox(menu, "history", "History").setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_H, ActionEvent.META_MASK));
-		addCheckBox(menu, "histogram", "Histogram");
 		this.add(menu);
 
 		disableAllButtons();
