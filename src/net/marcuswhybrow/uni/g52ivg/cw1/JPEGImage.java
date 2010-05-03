@@ -441,7 +441,6 @@ public class JPEGImage implements Cloneable
 
 	public int getIntensity(int x, int y)
 	{
-//		return (getRed(x, y) + getGreen(x, y) + getBlue(x, y)) / 3;
 		return (int) (0.2989 * (float) getRed(x, y) + 0.5870 * (float) getGreen(x, y) + 0.1140 * (float) getBlue(x, y));
 	}
 
