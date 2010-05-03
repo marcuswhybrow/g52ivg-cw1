@@ -3,12 +3,15 @@ package net.marcuswhybrow.uni.g52ivg.cw1;
 
 import com.sun.image.codec.jpeg.*;
 import java.awt.Color;
+import java.awt.Point;
 import java.awt.image.*;
 import java.io.*;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Set;
 
 /**
  * <p>
@@ -229,72 +232,65 @@ public class JPEGImage implements Cloneable
 		JPEGImage output = new JPEGImage(getWidth(), getHeight());
 		int meanIntensity;
 
-		List<HSBPixel> region = new LinkedList<HSBPixel>();
-		List<HSBPixel> newlyAdded = new LinkedList<HSBPixel>();
-		List<HSBPixel> previouslyAdded = new LinkedList<HSBPixel>();
+		HashSet<Point> region = new HashSet<Point>();
+		HashSet<Point> newlyAdded = new HashSet<Point>();
+		HashSet<Point> previouslyAdded = new HashSet<Point>();
 
-		Iterator newPixels, regionPixels;
-		HSBPixel newPixel, neighbouringPixel, pixel;
+		Point newPixel, neighbouringPixel, pixel;
 
 		// Set the intial pixel
-		region.add(new HSBPixel(x, y, getRed(x, y), getGreen(x, y), getBlue(x, y)));
-		newlyAdded.add(region.get(0));
+		Point point = new Point(x, y);
+		region.add(point);
+		newlyAdded.add(point);
 
 		while(!newlyAdded.isEmpty())
 		{
 			// Copy the list of newly added pixels, and rest the newlyAdded list
 			previouslyAdded = newlyAdded;
-			newlyAdded = new LinkedList<HSBPixel>();
+			newlyAdded = new HashSet<Point>();
 
 			// Calculate the existing mean intensity of the region
-			regionPixels = region.iterator();
 			meanIntensity = 0;
 
-			while(regionPixels.hasNext())
-				meanIntensity += ((HSBPixel) regionPixels.next()).getIntensity();
+			for(Object o : region)
+			{
+				point = (Point) o;
+				meanIntensity += this.getIntensity(point.x, point.y);
+			}
 
 			meanIntensity /= region.size();
-
-
+			
 			// Check the candidate neighbouring pixels against that intensity
-			newPixels = previouslyAdded.iterator();
-
-			while(newPixels.hasNext())
+			for(Object o : previouslyAdded)
 			{
-				newPixel = (HSBPixel) newPixels.next();
+				newPixel = (Point) o;
 
 				// Find the new candidate pixels
-				for(int i = newPixel.getX() - 1; i <= newPixel.getX() + 1; i++)
-					for(int j = newPixel.getY() - 1; j <= newPixel.getY() + 1; j++)
+				for(int i = newPixel.x - 1; i <= newPixel.x + 1; i++)
+					for(int j = newPixel.y - 1; j <= newPixel.y + 1; j++)
 					{
+						neighbouringPixel = new Point(i, j);
+
 						try
 						{
-							neighbouringPixel = new HSBPixel(i, j, getRed(i, j), getGreen(i, j), getBlue(i, j));
+							if(!region.contains(neighbouringPixel) && Math.abs(getIntensity(neighbouringPixel.x, neighbouringPixel.y) - meanIntensity) <= sensitivity)
+							{
+								region.add(neighbouringPixel);
+								newlyAdded.add(neighbouringPixel);
+							}
 						}
 						catch(ArrayIndexOutOfBoundsException e)
 						{
 							continue;
 						}
-
-//						neighbouringPixel.setSaturation(0);
-//						System.out.println(neighbouringPixel.getBrightness());
-
-						if(!region.contains(neighbouringPixel) && Math.abs(neighbouringPixel.getIntensity()- meanIntensity) <= sensitivity)
-						{
-							region.add(neighbouringPixel);
-							newlyAdded.add(neighbouringPixel);
-						}
 					}
 			}
 		}
 
-		regionPixels = region.iterator();
-
-		while(regionPixels.hasNext())
+		for(Object o : region)
 		{
-			pixel = (HSBPixel) regionPixels.next();
-//			output.setRGB(pixel.getX(), pixel.getY(), getRed(pixel.getX(), pixel.getY()), getGreen(pixel.getX(), pixel.getY()), getBlue(pixel.getX(), pixel.getY()));
-			output.setRGB(pixel.getX(), pixel.getY(), 0x00ffffff);
+			pixel = (Point) o;
+			output.setRGB(pixel.x, pixel.y, 0x00ffffff);
 		}
 
 		return output;
@@ -556,165 +552,5 @@ public class JPEGImage implements Cloneable
 				values[Math.round(Color.RGBtoHSB(this.getRed(x, y), this.getGreen(x, y), this.getBlue(x, y), null)[2] * 255)]++;
 
 		return values;
-	}
-
-	private static class Pixel
-	{
-		private int _x, _y, _r, _g, _b;
-		private int _intensity;
-
-		public Pixel(int x, int y, int r, int g, int b)
-		{
-			_x = x;
-			_y = y;
-
-			_r = r;
-			_g = g;
-			_b = b;
-
-			updateIntensity();
-		}
-
-		public int getX()
-		{
-			return _x;
-		}
-
-		public int getY()
-		{
-			return _y;
-		}
-
-		public int getIntensity()
-		{
-			return _intensity;
-		}
-
-		public int getRed()
-		{
-			return _r;
-		}
-
-		public int getGreen()
-		{
-			return _g;
-		}
-
-		public int getBlue()
-		{
-			return _b;
-		}
-
-		public void setRed(int value)
-		{	
-			_r =  checkRange(value);
-			updateIntensity();
-		}
-
-		public void setGreen(int value)
-		{
-			_g =  checkRange(value);
-			updateIntensity();
-		}
-
-		public void setBlue(int value)
-		{	
-			_b = checkRange(value);
-			updateIntensity();
-		}
-
-		private void updateIntensity()
-		{
-			_intensity = (int) (0.2989 * (float) _r + 0.5870 * (float) _g + 0.1140 * (float) _b);
-		}
-
-		@Override
-		@SuppressWarnings("EqualsWhichDoesntCheckParameterClass")
-		public boolean equals(Object o)
-		{
-			HSBPixel otherPixel = (HSBPixel) o;
-
-			if(this.getX() == otherPixel.getX() && this.getY() == otherPixel.getY())
-				return true;
-			else
-				return false;
-		}
-
-		@Override
-		public int hashCode()
-		{
-			int hash = 7;
-			hash = 89 * hash + this._x;
-			hash = 89 * hash + this._y;
-			return hash;
-		}
-
-		private int checkRange(int value)
-		{
-			if (value < 0 ) return 0;
-			if (value > 255) return 255;
-
-			return value;
-		}
-	}
-
-	private class HSBPixel extends Pixel
-	{
-		private float _h, _s, _b;
-
-		public HSBPixel(int x, int y, int r, int g, int b)
-		{
-			super(x, y, r, g, b);
-
-			// Convert to HSB colour space
-			float[] hsb = Color.RGBtoHSB(r, g, b, null);
-			_h = hsb[0];
-			_s = hsb[1];
-			_b = hsb[2];
-		}
-
-		public int getHue()
-		{
-			return (int) (_h * 255);
-		}
-
-		public int getSaturation()
-		{
-			return (int) (_s * 255);
-		}
-
-		public int getBrightness()
-		{
-			return (int) (_b * 255);
-		}
-
-		public void setHue(float hue)
-		{
-			_h = hue;
-			updateRGB();
-		}
-
-		public void setSaturation(float saturation)
-		{
-			_s = saturation;
-			updateRGB();
-		}
-
-		public void setBrightness(float brightness)
-		{
-			_b = brightness;
-			updateRGB();
-		}
-
-		private void updateRGB()
-		{
-			// Convert back to rgb bringing saturation to
-			int rgb = Color.HSBtoRGB(_h, _s, _b);
-
-			// work out the rgb new values
-			this.setRed((rgb & 0x00ff0000) >> 16);
-			this.setGreen((rgb & 0x0000ff00) >> 8);
-			this.setBlue(rgb & 0x000000ff);
-		}
 	}
 }

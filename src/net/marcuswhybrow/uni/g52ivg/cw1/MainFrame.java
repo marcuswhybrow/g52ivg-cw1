@@ -218,7 +218,8 @@ public class MainFrame extends JFrame implements ComponentListener, OverlayDeleg
 	{
 		_state = State.REG_GROW;
 
-		_histogramFrame.dispose();
+		if (_histogramFrame != null)
+			_histogramFrame.dispose();
 
 		//_image = new RegGrowImage(this, _history.peek().getBufferedImage());
 		_image.setCursor(new Cursor(Cursor.CROSSHAIR_CURSOR));
